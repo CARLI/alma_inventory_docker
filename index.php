@@ -11,7 +11,10 @@ if (preg_match('/^\/([^\/\.]+)\//', $_SERVER['REQUEST_URI'], $matches)) {
 } else {
     echo <<<EOF
 <html>
-<head><title>Alma Batch Inventory Report Tool</title></head>
+<head>
+<title>Alma Batch Inventory Report Tool</title>
+<meta name="robots" content="noindex">
+</head>
   <body>
 <h2>Alma Batch Inventory Report Tool</h2>
 <h4>CARLI provides this tool for I-Share Libraries. Please see <a href="https://www.carli.illinois.edu/products-services/i-share/external-system/PurdueInventory">CARLI’s documentation page</a> on this tool, and contact <a href="mailto:support@carli.illinois.edu">CARLI Support</a> with any questions.</h4>
