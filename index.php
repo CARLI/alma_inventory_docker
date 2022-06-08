@@ -1,4 +1,35 @@
 <?php
+require("apikeys.php");
+
+// $matches[1] contains the 3-letter library code, e.g., eiu
+if (preg_match('/^\/([^\/\.]+)\//', $_SERVER['REQUEST_URI'], $matches)) {
+    if (! $API_KEYS[$matches[1]]) {
+        http_response_code(404);
+        exit(1);
+    }
+    define("ALMA_SHELFLIST_API_KEY", $API_KEYS[$matches[1]]);
+} else {
+    echo <<<EOF
+<html>
+<head><title>Alma Batch Inventory Report Tool</title></head>
+  <body>
+<h2>Alma Batch Inventory Report Tool</h2>
+<h4>CARLI provides this tool for I-Share Libraries. Please see <a href="https://www.carli.illinois.edu/products-services/i-share/external-system/PurdueInventory">CARLI’s documentation page</a> on this tool, and contact <a href="mailto:support@carli.illinois.edu">CARLI Support</a> with any questions.</h4>
+  <br>
+  <br>
+EOF;
+    foreach(array_keys($API_KEYS) as $apicode) {
+            print <<<EOL
+<a href="/$apicode/">$API_KEYS_DESC[$apicode]</a><br>
+EOL;
+    }
+    echo <<<EOF
+  </body>
+</html>
+EOF;
+        exit(0);
+}
+
 if(!isset($_SESSION))
     {
         session_start();
@@ -6,11 +37,12 @@ if(!isset($_SESSION))
     $_SESSION['progress']=0;
     session_write_close();
 //require("login.php");
-require("key.php");
+//require("key.php");
 ?>
 <!DOCTYPE html>
 <html lang="en">
   <head>
+<title>Alma Batch Inventory Report Tool</title>
     <!--
   	First, include the main jQuery and jQuery UI javascripts (not included with reformed; you may use Google's CDN links as below:)
   -->
@@ -109,23 +141,45 @@ require("key.php");
         {
   //alert(httpxml.responseText);
   var myarray = JSON.parse(httpxml.responseText);
+
   // Remove the options from 2nd dropdown list
+/*
   for(j=document.ShelfLister.location.options.length-1;j>=0;j--)
   {
   document.ShelfLister.location.remove(j);
   }
+*/
+  // Do it the jQuery way instead
+  $('#location')
+    .find('option')
+    .remove()
+    .end();
 
 
+/*
   for (i=0;i<myarray.locationData.length;i++)
   {
   var optn = document.createElement("OPTION");
-  optn.text = myarray.locationData[i].name;
+  optn.text = myarray.locationData[i].name + ' (' + myarray.locationData[i].code + ')';
   optn.value = myarray.locationData[i].code;
   document.ShelfLister.location.options.add(optn);
-
   }
+*/
+  // Do it the jQuery way instead
+  $.each(myarray.locationData, function (i, item) {
+    $('#location').append($('<option>', { 
+        value: item.code,
+        text : item.name + ' (' + item.code + ')'
+    }));
+  });
+  // note: had to add .change() in order for the first option to be seen/visible
+  $("#location").val($("#location option:first").val()).change();
+
+
         }
       } // end of function stateck
+
+
   var url="almaLocationsAPI.php";
   var cat_id=document.getElementById('library').value;
   url=url+"?lib_id="+cat_id;
@@ -184,9 +238,17 @@ h2 {
   </head>
   <body>
 
+<div align="center">
+<h1>Alma Batch Inventory Report Tool</h1>
+</div>
+<div align="left">
+<h4>CARLI provides this tool for I-Share Libraries. Please see <a href="https://www.carli.illinois.edu/products-services/i-share/external-system/PurdueInventory">CARLI’s documentation page</a> on this tool, and contact <a href="mailto:support@carli.illinois.edu">CARLI Support</a> with any questions.</h4>
+</div>
+<br/>
+
     <div class="reformed-form">
-      <h1>Inventory Report <small>Fill in form and submit</small></h1>
-    	<form method="post" name="ShelfLister" id="ShelfLister" action="<?php echo 'http://' . $_SERVER['HTTP_HOST'].dirname($_SERVER['PHP_SELF']) . 'process_barcodes.php'; ?>" enctype="multipart/form-data">
+      <!-- <h1>Inventory Report <small>Fill in form and submit</small></h1> -->
+    	<form method="post" name="ShelfLister" id="ShelfLister" action="<?php echo 'https://' . $_SERVER['HTTP_HOST'].dirname($_SERVER['PHP_SELF']) . '/' . 'process_barcodes.php'; ?>" enctype="multipart/form-data">
     		<dl>
     			<dt>
     				<label for="flie">Barcode XLSX FIle:</label>
@@ -205,8 +267,10 @@ h2 {
     					<li><input type="radio" class="required" id="cnType" name="cnType" value="dewey" />
     						<label>Dewey</label>
     					</li>
+<!--
     					<li><input type="radio" class="required" id="cnType" name="cnType" value="other" />
     						<label>Other</label>
+-->
     					</li>
     				</ul>
     						</dd>
@@ -253,10 +317,46 @@ echo "<option value=$library->code>$library->name</option>";
     			</dt>
     			<dd>
     				<select size="1" name="itemType" id="itemType" class="required">
+<!--
     					<option value="BOOK">Book</option>
     					<option value="PERIODICAL">Periodical</option>
               <option value="DVD">DVD</option>
     					<option value="THESIS">Thesis</option>
+-->
+<?Php
+$ch = curl_init();
+$url = 'https://api-na.hosted.exlibrisgroup.com/almaws/v1/conf/code-tables/PhysicalMaterialType';
+$queryParams = '?' . urlencode('lang') . '=' . urlencode('en') . '&' . urlencode('apikey') . '=' . ALMA_SHELFLIST_API_KEY;
+curl_setopt($ch, CURLOPT_URL, $url . $queryParams);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+curl_setopt($ch, CURLOPT_HEADER, FALSE);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+$response = curl_exec($ch);
+curl_close($ch);
+
+$xml_result = simplexml_load_string($response);
+$item_rows = [];
+foreach ($xml_result->rows->row as $row) {
+  array_push($item_rows, $row);
+}
+function usortItems($a, $b) {
+  return strcasecmp($a->description, $b->description);
+}
+usort($item_rows, "usortItems");
+
+
+// PARSE RESULTS
+        foreach($item_rows as $row)
+        {
+            //if ($row->enabled == 'true') {
+                //if ($row->default == 'true') {
+//echo "<option value=\"$row->code\" selected>$row->description (" . $row->code . ")</option>";
+                //} else {
+echo "<option value=\"$row->code\">$row->description (" . $row->code . ")</option>";
+                //}
+            //}
+}
+?>
     				</select>
     			</dd>
     		</dl>
@@ -266,17 +366,49 @@ echo "<option value=$library->code>$library->name</option>";
     			</dt>
     			<dd>
     				<select size="1" name="policy" id="policy" class="required">
+<!--
     					<option value="core">Core</option>
     					<option value="reserve">Reserve</option>
               <option value="cont lit">Contemporary Lit</option>
     					<option value="media">Media</option>
               <option value="juvenile">Juvenile</option>
+-->
+<?Php
+$ch = curl_init();
+$url = 'https://api-na.hosted.exlibrisgroup.com/almaws/v1/conf/code-tables/ItemPolicy';
+$queryParams = '?' . urlencode('lang') . '=' . urlencode('en') . '&' . urlencode('apikey') . '=' . ALMA_SHELFLIST_API_KEY;
+curl_setopt($ch, CURLOPT_URL, $url . $queryParams);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+curl_setopt($ch, CURLOPT_HEADER, FALSE);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+$response = curl_exec($ch);
+curl_close($ch);
+
+$xml_result = simplexml_load_string($response);
+$item_rows = [];
+foreach ($xml_result->rows->row as $row) {
+  array_push($item_rows, $row);
+}
+usort($item_rows, "usortItems");
+
+// PARSE RESULTS
+        foreach($item_rows as $row)
+        {
+            //if ($row->enabled == 'true') {
+                //if ($row->default == 'true') {
+//echo "<option value=\"$row->code\" selected>$row->description (" . $row->code . ")</option>";
+                //} else {
+echo "<option value=\"$row->code\">$row->description (" . $row->code . ")</option>\n";
+                //}
+            //}
+}
+?>
     				</select>
     			</dd>
     		</dl>
         <dl>
     			<dt>
-    				<label for="cnType">Only Report<BR>CN Order Problems?</label>
+    				<label for="cnType">Only Report<BR>Call Number Order Problems?</label>
     			</dt>
     			<dd>
     				<ul>
@@ -291,7 +423,7 @@ echo "<option value=$library->code>$library->name</option>";
     		</dl>
         <dl>
     			<dt>
-    				<label for="cnType">Only Report<BR>Problems Other Than CN?</label>
+    				<label for="cnType">Only Report<BR>Problems Other Than Call Number?</label>
     			</dt>
     			<dd>
     				<ul>
@@ -339,5 +471,8 @@ echo "<option value=$library->code>$library->name</option>";
     		</div>
     		</form>
     </div>
+  <script type="text/javascript">
+AjaxFunction();
+  </script>
   </body>
 </html>

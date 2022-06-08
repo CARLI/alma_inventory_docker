@@ -1,3 +1,17 @@
+<?php
+require("apikeys.php");
+$orgPrefix = '';
+
+// $matches[1] contains the 3-letter library code, e.g., eiu
+if (preg_match('/^\/([^\/\.]+)\//', $_SERVER['REQUEST_URI'], $matches)) {
+    define("ALMA_SHELFLIST_API_KEY", $API_KEYS[$matches[1]]);
+    $orgPrefix = $matches[1] . '______';
+} else {
+    http_response_code(404);
+    exit(1);
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,7 +96,7 @@ if (isset($_POST['submit'])) {
   //pre($_POST);
 	//Clear cache directory if requested
     if ($_POST['clearCache'] == 'true') {
-		foreach(glob("cache/barcodes/*") as $file)
+		foreach(glob("cache/barcodes/${orgPrefix}*") as $file)
 		{
 				unlink($file);
 		}
@@ -101,13 +115,13 @@ if (isset($_POST['submit'])) {
             // echo "Temp file: " . $_FILES["file"]["tmp_name"] . "<br />";
 
             //if file already exists
-            if (file_exists("cache/upload/" . $_FILES["file"]["name"])) {
+            if (file_exists("cache/upload/${orgPrefix}" . $_FILES["file"]["name"])) {
                 //echo $_FILES["file"]["name"] . " already exists. ";
             } else {
                 //Store file in directory "upload" with the name of "uploaded_file.txt"
                 $storagename = 'uploaded_file_' . $_POST['library'] . '_' . $_POST['location'] . '_' . date('Ymd') .  '.xlsx';
-                move_uploaded_file($_FILES["file"]["tmp_name"], "cache/upload/" . $storagename);
-                //echo "Stored in: " . "cache/" . $_FILES["file"]["name"] . "<br />";
+                move_uploaded_file($_FILES["file"]["tmp_name"], "cache/upload/${orgPrefix}" . $storagename);
+                //echo "Stored in: " . "cache/${orgPrefix}" . $_FILES["file"]["name"] . "<br />";
             }
         }
     } else {
@@ -124,31 +138,38 @@ if (isset($_POST['submit'])) {
     }
 
 
-    if (file_exists("cache/upload/" . $storagename)) {
-      $filelocation = "cache/upload/" . $storagename;
+    if (file_exists("cache/upload/${orgPrefix}" . $storagename)) {
+      $filelocation = "cache/upload/${orgPrefix}" . $storagename;
       $xlsx = new SimpleXLSX($filelocation);
       list($num_cols, $num_rows) = $xlsx->dimension();
 
         //load callNumber array and sort for printing below
         //Rows in sheet 1
         $row=1;
+        $barcodeHeaderInx=-1;
         foreach( $xlsx->rows() as $k => $r ) {
           // Start the session when using it. Not before or out of the loop. Remember that you are only using it to store the % of progress.
            //session_start();
             //Skip First row
             if ($k == 0) {
               //Check that first cell is header "barcodes"
-              if($r[0] == 'barcodes')
+              for($i=0; $i<count($r); $i++) {
+                if (preg_match('/^barcode[s]*$/i', $r[$i], $matches)) {
+                  $barcodeHeaderInx=$i;
+                  break;
+                }
+              }
+              if($barcodeHeaderInx > -1)
               {
                 continue; // Header is ok, skip first row and continue
               }
               else {
-                echo "Upload file must have header row labeled barcodes";
+                echo "Upload file must have header row labeled 'barcode' or 'barcodes'";
                 exit;
               }
             }
                 //only need first column from Excel sheet, so hard coding 0 for column #
-                $barcode = $r[0];
+                $barcode = $r[$barcodeHeaderInx];
                 //echo($barcode);
                 /*
                 //object elements returned from retrieveBarcodeInfo function call below
@@ -173,7 +194,7 @@ if (isset($_POST['submit'])) {
                 $item_obj->requested = (string)$xml_barcode_result->item_data->requested;
                 $item_obj->policy = (string)$xml_barcode_result->item_data->policy;
                 */
-                $itemData = retrieveBarcodeInfo($barcode);
+                $itemData = retrieveBarcodeInfo($orgPrefix, $barcode);
 
                 //If Barcode Not Found Write Scanned Barcode to Item Object So it Will print on report
                 if ($itemData->item_barcode == '')
@@ -326,7 +347,8 @@ if (isset($_POST['submit'])) {
                 $cntype = 0;
               }
                 if ($sortednk[$key]['call_number_type'] != $cntype) {
-                    $cnTypeProblem = "**WRONG CN TYPE**<BR>";
+                    //$cnTypeProblem = "**WRONG CN TYPE**<BR>";
+$cnTypeProblem = "**WRONG CN TYPE** (expecting " . $cntype . ", but got " . $sortednk[$key]['call_number_type'] . ")<BR>";
                     $cnTypeProblemCount += 1;
                     $problem = true;
                 } else {
@@ -358,7 +380,8 @@ if (isset($_POST['submit'])) {
 
                 $location = $_POST['location'];
                 if ($sortednk[$key]['location'] != $location) {
-                    $locationProblem = "**WRONG LOCATION: " . $sortednk[$key]['location'] . "**<BR>";
+                    //$locationProblem = "**WRONG LOCATION: " . $sortednk[$key]['location'] . "**<BR>";
+$locationProblem = "**WRONG LOCATION** (expecting " . $location . ", but got " . $sortednk[$key]['location'] . ")<BR>";
                     $locationProblemCount += 1;
                     $problem = true;
                 } else {
@@ -376,7 +399,8 @@ if (isset($_POST['submit'])) {
                 $policy = $_POST['policy'];
                 if ($sortednk[$key]['policy'] != $policy) {
                     if ($sortednk[$key]['policy'] != '') {
-                        $policyProblem = "**WRONG ITEM POLICY: " . $sortednk[$key]['policy'] . "**<BR>";
+                        //$policyProblem = "**WRONG ITEM POLICY: " . $sortednk[$key]['policy'] . "**<BR>";
+$policyProblem = "**WRONG ITEM POLICY** (expecting " . $policy . ", but got " . $sortednk[$key]['policy'] . ")<BR>";
                         $policyProblemCount += 1;
                     } else {
                         $policyProblem = "**BLANK I POLICY**<BR>";
@@ -390,7 +414,8 @@ if (isset($_POST['submit'])) {
                 $type = $_POST['itemType'];
                 if ($sortednk[$key]['physical_material_type'] != $type) {
                     if ($sortednk[$key]['physical_material_type'] != '') {
-                        $typeProblem = "**WRONG TYPE: " . $sortednk[$key]['physical_material_type'] . "**<BR>";
+                        //$typeProblem = "**WRONG TYPE: " . $sortednk[$key]['physical_material_type'] . "**<BR>";
+$typeProblem = "**WRONG TYPE** (expecting " . $type . ", but got " . $sortednk[$key]['physical_material_type'] . ")<BR>";
                         $typeProblemCount +=1;
                     } else {
                         $typeProblem = "**BLANK I TYPE**<BR>";
@@ -434,8 +459,8 @@ if (isset($_POST['submit'])) {
           echo "Upload file contains ". ($num_rows - 1) . " barcodes.";
         echo "</p>";
         echo "<div class='row'>";
-        $csv_output_filename = 'ShelfList_' . $_POST['library'] . '_' . $_POST['location'] . '_' . substr($first_call, 0, 4) . '_' . substr($last_call, 0, 4) . '_' . date('Ymd') . '.csv';
-          echo "<div class='col-md-4'><a href=" . "http://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "index.php" . "> Run New File</a></div> <div class='col-md-4'><a href=cache/output/" . $csv_output_filename . ">Download File: " . $csv_output_filename . "</a></div>";
+        $csv_output_filename = $orgPrefix . 'ShelfList_' . $_POST['library'] . '_' . $_POST['location'] . '_' . substr($first_call, 0, 4) . '_' . substr($last_call, 0, 4) . '_' . date('Ymd') . '.csv';
+          echo "<div class='col-md-4'><a href=" . "http://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "/index.php" . "> Run New File</a></div> <div class='col-md-4'><a href=cache/output/" . $csv_output_filename . ">Download File: " . $csv_output_filename . "</a></div>";
         echo "</div>";
         echo "<table style='width: auto;' class='table table-hover table-bordered table-condensed'><tr><td>";
         echo '<B>' . $orderProblemCount . '</b> Order Problems Found</td>';
@@ -467,8 +492,8 @@ function outputRecords($output){
   //Use global to allow use inside of function
   global $csv_output_filename;
   // check if cached barcodeOutput file exists and delete if needed
-  if (file_exists("cache/output/" . $csv_output_filename)) {
-      unlink("cache/output/" . $csv_output_filename);
+  if (file_exists("cache/output/${orgPrefix}" . $csv_output_filename)) {
+      unlink("cache/output/${orgPrefix}" . $csv_output_filename);
 
       if (isset($_GET['debug'])) {
           print("cache file deleted");
@@ -477,7 +502,7 @@ function outputRecords($output){
 
 // open the csv file for writing
 
-  $csv_file = fopen('cache/output/' . $csv_output_filename, 'w');
+  $csv_file = fopen("cache/output/${orgPrefix}" . $csv_output_filename, 'w');
 
 // save the CSV column headers
   fputcsv($csv_file, array('Correct_Position', 'Call_Number', 'norm_call_number','Title', 'Position Scanned', 'Problem', 'Barcode'));
@@ -486,7 +511,7 @@ function outputRecords($output){
   echo "<thead>";
   echo "<tr>";
   echo "<th>Correct<BR>Order</th>";
-  echo "<th>Correct CN Order</th>";
+  echo "<th>Correct Call Number Order</th>";
   //  echo "<th>Norm CN Order</th>";
   echo "<th>Title</th>";
   echo "<th>Where<BR>Scanned</th>";

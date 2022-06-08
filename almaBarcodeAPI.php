@@ -1,16 +1,23 @@
 <?php
+require("apikeys.php");
 
-require("key.php");
-date_default_timezone_set('America/Indiana/Indianapolis');
+// $matches[1] contains the 3-letter library code, e.g., eiu
+if (preg_match('/^\/([^\/\.]+)\//', $_SERVER['REQUEST_URI'], $matches)) {
+    define("ALMA_SHELFLIST_API_KEY", $API_KEYS[$matches[1]]);
+} else {
+    http_response_code(404);
+    exit(1);
+}
+
+date_default_timezone_set('America/Illinois/Chicago');
 // set the Caching Frequency - neverExpire, Daily, Hourly or None (No Caching) (recommended default: Daily)
 if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
 /*********************************************************************
  * SortLC
  *********************************************************************/
  //retrieve Item Info Using Barcode and return array of data
- function retrieveBarcodeInfo($barcode)
+ function retrieveBarcodeInfo($orgPrefix, $barcode)
  {
-
      $xml_barcode_result = false;
      $barcode = urlencode($barcode);
      //Remove encoded data received when processing CSV
@@ -22,26 +29,26 @@ if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
 
      if (strcmp(CACHE_FREQUENCY, "None")) {
          // check cache for barcode
-         if (file_exists("cache/barcodes/" . $barcode . ".xml")) {
+         if (file_exists("cache/barcodes/${orgPrefix}" . $barcode . ".xml")) {
              // check last modified datestamp
              $cache_expired = false;
              switch (CACHE_FREQUENCY) {
                  case 'Hourly':
-                     if (filemtime("cache/barcodes/" . $barcode . ".xml") < strtotime(date("Y-m-d H:00:00", strtotime("now")))) $cache_expired = true;
+                     if (filemtime("cache/barcodes/${orgPrefix}" . $barcode . ".xml") < strtotime(date("Y-m-d H:00:00", strtotime("now")))) $cache_expired = true;
                  case 'Daily':
-                     if (filemtime("cache/barcodes/" . $barcode . ".xml") < strtotime(date("Y-m-d 00:00:00", strtotime("now")))) $cache_expired = true;
-                 default: if(filemtime("cache/barcodes/". $barcode .".xml") < strtotime(date("Y-m-d 00:00:00",strtotime("now")))) $cache_expired = true;
+                     if (filemtime("cache/barcodes/${orgPrefix}" . $barcode . ".xml") < strtotime(date("Y-m-d 00:00:00", strtotime("now")))) $cache_expired = true;
+                 default: if(filemtime("cache/barcodes/${orgPrefix}". $barcode .".xml") < strtotime(date("Y-m-d 00:00:00",strtotime("now")))) $cache_expired = true;
              }
              //$cache_expired = true;
              if (!$cache_expired) {
-                $xml = file_get_contents("cache/barcodes/" . $barcode . ".xml");
+                $xml = file_get_contents("cache/barcodes/${orgPrefix}" . $barcode . ".xml");
                     if (trim($xml) == '') {
                             //barcode file empty, reload from api
                             $xml_barcode_result = false;
                     }
                     else {
                         $xml_barcode_result = simplexml_load_string($xml);
-                        if (isset($_GET['debug'])) print("loaded data from cache file: cache/barcodes/" . $barcode . ".xml<br>\n");
+                        if (isset($_GET['debug'])) print("loaded data from cache file: cache/barcodes/${orgPrefix}" . $barcode . ".xml<br>\n");
                     }
              }
              else {
@@ -67,7 +74,7 @@ if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
 
          // save result to cache
          if (strcmp(CACHE_FREQUENCY, "None") && is_writable("cache/barcodes/")) {
-             file_put_contents("cache/barcodes/" . $barcode . ".xml", $result);
+             file_put_contents("cache/barcodes/${orgPrefix}" . $barcode . ".xml", $result);
              if (isset($_GET['debug'])) {
                  print("Barcode File written to cache\n");
              }

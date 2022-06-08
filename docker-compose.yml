@@ -4,8 +4,11 @@ services:
     build:
       context: .
       dockerfile: .docker/Dockerfile
-    image: alma-inventory-docker
+    image: alma-inventory-purdue
     ports:
       - 8080:80
     volumes:
       - .:/srv/app
+      - ./alias.conf:/etc/apache2/mods-available/alias.conf
+#     - ./key_rmc.php:/srv/app/key_rmc.php
+#     - ./key_mmc.php:/srv/app/key_mmc.php

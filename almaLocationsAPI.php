@@ -1,5 +1,14 @@
 <?Php
-require("key.php");
+require("apikeys.php");
+
+// $matches[1] contains the 3-letter library code, e.g., eiu
+if (preg_match('/^\/([^\/\.]+)\//', $_SERVER['REQUEST_URI'], $matches)) {
+  define("ALMA_SHELFLIST_API_KEY", $API_KEYS[$matches[1]]);
+} else {
+  http_response_code(404);
+  exit(1);
+}
+//require("key.php");
 //Uncomment below if you wish to enable authentication
 //require("login.php");
 
