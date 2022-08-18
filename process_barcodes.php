@@ -207,12 +207,24 @@ if (isset($_POST['submit'])) {
                 }
                 else {  
                   //Barcode was found so we can store a normalized call number to use for sorting
-                  
+
                   //Need to remove "DVD " prefix prior to sorting if DVD
-                  if (isset($_POST['itemType']) && $_POST['itemType'] == 'DVD') {  
+                  //if (isset($_POST['itemType']) && $_POST['itemType'] == 'DVD') {  
                     // Remove any inital "DVD " prior to sorting
-                    $itemData->call_number = preg_replace("/^DVD\s*/", "", $itemData->call_number);
-                  }
+                    //$itemData->call_number = preg_replace("/^DVD\s*/", "", $itemData->call_number);
+                  //}
+
+
+// is there a PREFIX? if so, remove it before normalizing (then put it back) because our normalize routines cannot process them correctly
+$cn_prefix = '';
+$orig_cn = $itemData->call_number;
+if (isset($itemData->call_number_prefix)) {
+  $pfx_re = '/^' . $itemData->call_number_prefix . '\s*/';
+  if (preg_match($pfx_re, $itemData->call_number)) {
+    $itemData->call_number = preg_replace($pfx_re, "", $itemData->call_number);
+    $cn_prefix = $itemData->call_number_prefix . ' ';
+  }
+}
 
                   //if call_number_type == 1 it should be dewey
                   if($itemData->call_number_type == 1)
@@ -222,6 +234,13 @@ if (isset($_POST['submit'])) {
                   else {
                     $itemData->call_sort = normalizeLC($itemData->call_number);
                   }
+
+// put back PREFIX (if there is one)
+$itemData->call_sort = $cn_prefix . $itemData->call_sort;
+// put back original call number
+$itemData->call_number = $orig_cn;
+
+
 
                 }
                 //For (dubugging) view item info
@@ -303,39 +322,49 @@ if (isset($_POST['submit'])) {
                 if (!isset($sortednk[$key + 1]['scan_loc'])) {
                     $sortednk[$key + 1]['scan_loc'] = null;
                 }
-                $prevScan_loc = $sortednk[$key - 1]['scan_loc'] + 1;
-                $scan_loc = $sortednk[$key]['scan_loc'] + 1;
-                $nextScan_loc = $sortednk[$key + 1]['scan_loc'] + 1;
-                $nextdiff = $nextScan_loc - $scan_loc;
-                $prevdiff = $scan_loc - $prevScan_loc;
 
-                if ($prevdiff != 1 && $nextdiff != 1) {
+                // If the normalize function failed (in LC case), this value is a blank space. Warn the user that sorting for this call number is highly suspect!
+                if (trim($sortednk[$key]['call_sort']) == '') {
+                    $orderProblem = "**OUT OF ORDER**<BR><em>Failed to normalize call number for sorting: " . $sortednk[$key]['call_number'] . "</em><BR>";
 
-                    //Next two if statements take care of undefined offset issue
-                    if (!isset($unsortedArray[$sortednk[$key]['scan_loc'] - 1])) {
-                        $unsortedArray[$sortednk[$key]['scan_loc'] - 1] = null;
-                    }
-                    if (!isset($unsortedArray[$sortednk[$key]['scan_loc'] + 1])) {
-                        $unsortedArray[$sortednk[$key]['scan_loc'] + 1] = null;
-                    }
-
-                    $move = $prevScan_loc - $scan_loc;
-                    $prevScan_loc = 0;
-                    $scan_loc = 0;
-                    if ($move <0){
-                      $move = 'Move item back '.(abs($move) -1)  . ' spaces';
-                    }
-                    else {
-                      $move = 'Move item forward '.($move)  . ' spaces';
-                    }
-
-                    $orderProblem = "**OUT OF ORDER**<BR>Item Currently Between:<BR><em>" . $unsortedArray[$sortednk[$key]['scan_loc'] - 1]['call_number'] . "</em> & <em>" . $unsortedArray[$sortednk[$key]['scan_loc'] + 1]['call_number'] . "</em><BR>" . $move . "<BR>";
                     $orderProblemCount += 1;
                     $problem = true;
-
-
                 } else {
-                    $orderProblem = '';
+                    $prevScan_loc = $sortednk[$key - 1]['scan_loc'] + 1;
+                    $scan_loc = $sortednk[$key]['scan_loc'] + 1;
+                    $nextScan_loc = $sortednk[$key + 1]['scan_loc'] + 1;
+                    $nextdiff = $nextScan_loc - $scan_loc;
+                    $prevdiff = $scan_loc - $prevScan_loc;
+
+                    if ($prevdiff != 1 && $nextdiff != 1) {
+
+                        //Next two if statements take care of undefined offset issue
+                        if (!isset($unsortedArray[$sortednk[$key]['scan_loc'] - 1])) {
+                            $unsortedArray[$sortednk[$key]['scan_loc'] - 1] = null;
+                        }
+                        if (!isset($unsortedArray[$sortednk[$key]['scan_loc'] + 1])) {
+                            $unsortedArray[$sortednk[$key]['scan_loc'] + 1] = null;
+                        }
+
+                        $move = $prevScan_loc - $scan_loc;
+                        $prevScan_loc = 0;
+                        $scan_loc = 0;
+                        if ($move <0){
+                          $move = 'Move item back '.(abs($move) -1)  . ' spaces';
+                        }
+                        else {
+                          $move = 'Move item forward '.($move)  . ' spaces';
+                        }
+
+                        $orderProblem = "**OUT OF ORDER**<BR>Item Currently Between:<BR><em>" . $unsortedArray[$sortednk[$key]['scan_loc'] - 1]['call_number'] . "</em> & <em>" . $unsortedArray[$sortednk[$key]['scan_loc'] + 1]['call_number'] . "</em><BR>" . $move . "<BR>";
+                        $orderProblemCount += 1;
+                        $problem = true;
+
+
+                    } else {
+                        $orderProblem = '';
+                    }
+
                 }
             }
 
