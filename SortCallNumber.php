@@ -17,16 +17,36 @@ function SortLC($right, $left)
  *********************************************************************/
 function SortLCObject($right, $left)
 {
-    $right = NormalizeLC($right["call_number"]);
-    $left = NormalizeLC($left["call_number"]);
+//pre($right); 
+    $right = NormalizeLC($right["call_number"], $right["call_number_prefix"]);
+    $left = NormalizeLC($left["call_number"], $left["call_number_prefix"]);
+//$msg .= 'rn: ' . $right . ' ln: ' . $left . "\n";
+//pre($msg); 
     return (strcmp($right, $left));
 } // end SortLC
 /*********************************************************************
  *  NormalizeLC
  *  Normalizes LC for sorting
  *********************************************************************/
-function NormalizeLC($lc_call_no_orig)
+function NormalizeLC($lc_call_no_orig, $cn_prefix='')
 {
+
+  // is there a PREFIX? if so, remove it before normalizing (then put it back) because our normalize routines cannot process them correctly
+  $lc_call_no = $lc_call_no_orig;
+  if (strlen($cn_prefix) > 0) {
+    $pfx_re = '/^' . $cn_prefix . '\s*/';
+    if (preg_match($pfx_re, $lc_call_no)) {
+      $lc_call_no = preg_replace($pfx_re, "", $lc_call_no);
+      $cn_prefix = $cn_prefix . ' ';
+    }
+  }
+
+//pre('in NormalizeLC');
+//$msg  = 'prefix: ' . $cn_prefix . "\n";
+//$msg .= 'orig input: ' . $lc_call_no_orig . "\n";
+//$msg .= 'input: ' . $lc_call_no . "\n";
+//pre($msg);
+
     /*
       User defined setting: set problems to top to sort unparsable
       call numbers to the top of the list; false to sort them to the
@@ -39,7 +59,8 @@ function NormalizeLC($lc_call_no_orig)
         $unparsable = "~";
     }
     //Convert all alpha to uppercase
-    $lc_call_no = strtoupper($lc_call_no_orig);
+    $lc_call_no = strtoupper($lc_call_no);
+
     // define special trimmings that indicate integer
     $integer_markers = array("C.", "BD.", "DISC", "DISK", "NO.", "PT.", "v.", "V.", "VOL.");
     foreach ($integer_markers as $mark) {
@@ -60,6 +81,7 @@ function NormalizeLC($lc_call_no_orig)
         $the_trimmings = $m[8];
     } //end if call number match
     else {
+//pre('in NormalizeLC unparsible');
         return ($unparsable);
     } // return extreme answer if not a call number
     if ($cutter_2_letter && !($cutter_2_number)) {
@@ -101,6 +123,10 @@ function NormalizeLC($lc_call_no_orig)
         . "$decimal_number" . "$cutter_1_letter"
         . "$cutter_1_number" . "$cutter_2_letter"
         . "$cutter_2_number" . "$the_trimmings";
+
+
+    // put back PREFIX (if there is one)
+    $normalized = $cn_prefix . $normalized;
 
     return ("$normalized");
 } // end NormalizeLC

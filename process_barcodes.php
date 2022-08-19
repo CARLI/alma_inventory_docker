@@ -214,34 +214,15 @@ if (isset($_POST['submit'])) {
                     //$itemData->call_number = preg_replace("/^DVD\s*/", "", $itemData->call_number);
                   //}
 
-
-// is there a PREFIX? if so, remove it before normalizing (then put it back) because our normalize routines cannot process them correctly
-$cn_prefix = '';
-$orig_cn = $itemData->call_number;
-if (isset($itemData->call_number_prefix)) {
-  $pfx_re = '/^' . $itemData->call_number_prefix . '\s*/';
-  if (preg_match($pfx_re, $itemData->call_number)) {
-    $itemData->call_number = preg_replace($pfx_re, "", $itemData->call_number);
-    $cn_prefix = $itemData->call_number_prefix . ' ';
-  }
-}
-
                   //if call_number_type == 1 it should be dewey
                   if($itemData->call_number_type == 1)
                   {
-                    $itemData->call_sort = normalizeDewey($itemData->call_number);
+                    $itemData->call_sort = NormalizeDewey($itemData->call_number);
                   }
                   else {
-                    $itemData->call_sort = normalizeLC($itemData->call_number);
+//pre('calling NormalizeLC');
+                    $itemData->call_sort = NormalizeLC($itemData->call_number, $itemData->call_number_prefix);
                   }
-
-// put back PREFIX (if there is one)
-$itemData->call_sort = $cn_prefix . $itemData->call_sort;
-// put back original call number
-$itemData->call_number = $orig_cn;
-
-
-
                 }
                 //For (dubugging) view item info
                 //pre($itemData);
