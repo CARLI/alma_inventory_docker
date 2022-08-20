@@ -95,17 +95,19 @@ if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
          $xml_holding_data_result = simplexml_load_string($holding_data_result);
          curl_close($ch);
 $gotCNP = 0;
-foreach ($xml_holding_data_result->record->datafield as $df)  {
-  if($df['tag'] == '852') {
-    foreach ($df->subfield as $sf) {
-      if ($sf['code'] == 'k') {
-        $xml_barcode_result->holding_data->call_number_prefix = $sf[0];
-        $gotCNP = 1;
+if ($xml_holding_data_result->record->datafield)  {
+  foreach ($xml_holding_data_result->record->datafield as $df)  {
+    if($df['tag'] == '852') {
+      foreach ($df->subfield as $sf) {
+        if ($sf['code'] == 'k') {
+          $xml_barcode_result->holding_data->call_number_prefix = $sf[0];
+          $gotCNP = 1;
+          break;
+        }
+      }
+      if ($gotCNP == 1) {
         break;
       }
-    }
-    if ($gotCNP == 1) {
-      break;
     }
   }
 }
