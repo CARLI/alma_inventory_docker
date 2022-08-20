@@ -153,7 +153,7 @@ $result = $doc->saveXML();
      $item_obj->policy = (string)$xml_barcode_result->item_data->policy;
 ////////////////////////////////
 // add this new field to the item object
-if ($gotCNP) { 
+if ($xml_barcode_result->holding_data->call_number_prefix) { 
   $item_obj->call_number_prefix = (string)$xml_barcode_result->holding_data->call_number_prefix;
 }
 ////////////////////////////////
