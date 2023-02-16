@@ -1,4 +1,6 @@
 # alma_inventory_docker
+[BATCH]
+
 Alma Inventory API setup which can be launched using docker on Mac, Linux or Windows.
 The details of this application and how to run it can be found here: https://developers.exlibrisgroup.com/blog/Shelf-Inventory-using-Alma-APIs
 
