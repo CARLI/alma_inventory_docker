@@ -106,7 +106,10 @@ curl_setopt($ch, CURLOPT_HEADERFUNCTION,
 
 
          $holding_data_result = curl_exec($ch);
-$api_calls_remaining = end($headers['x-exl-api-remaining']);
+$api_calls_remaining = NULL;
+if (isset($headers['x-exl-api-remaining'])) {
+  $api_calls_remaining = end($headers['x-exl-api-remaining']);
+}
 //print("<pre>" . htmlspecialchars(print_r($api_calls_remaining,true)) . "</pre>");
 
          if (isset($_GET['debug'])) {
@@ -182,11 +185,10 @@ if ($xml_barcode_result->holding_data->call_number_prefix) {
 
 ////////////////////////////////
 // add this new field to the item object
-     // if no cache data available, query the Alma API
-if ($cached_results) {
-     $item_obj->api_calls_remaining  = NULL;
-} else {
-     $item_obj->api_calls_remaining  = (string)$api_calls_remaining;
+$item_obj->api_calls_remaining  = NULL;
+if (! $cached_results) {
+     if ($api_calls_remaining != NULL)
+       $item_obj->api_calls_remaining  = (string)$api_calls_remaining;
 }
 ////////////////////////////////
 
