@@ -251,7 +251,7 @@ h2 {
 
     <div class="reformed-form">
       <!-- <h1>Inventory Report <small>Fill in form and submit</small></h1> -->
-    	<form method="post" name="ShelfLister" id="ShelfLister" action="<?php echo 'https://' . $_SERVER['HTTP_HOST'].dirname($_SERVER['PHP_SELF']) . '/' . 'process_barcodes.php'; ?>" enctype="multipart/form-data">
+    	<form method="post" name="ShelfLister" id="ShelfLister" action="<?php echo 'http://' . $_SERVER['HTTP_HOST'].dirname($_SERVER['PHP_SELF']) . '/' . 'process_barcodes.php'; ?>" enctype="multipart/form-data">
     		<dl>
     			<dt>
     				<label for="flie">Barcode XLSX FIle:</label>
@@ -365,7 +365,7 @@ echo "<option value=\"$row->code\">$row->description (" . $row->code . ")</optio
     		</dl>
         <dl>
     			<dt>
-    				<label for="itemType">Primary Policy<BR> Type for Scanned Location</label>
+    				<label for="policy">Primary Policy<BR> Type for Scanned Location</label>
     			</dt>
     			<dd>
     				<select size="1" name="policy" id="policy" class="required">
@@ -399,7 +399,7 @@ usort($item_rows, "usortItems");
         {
             //if ($row->enabled == 'true') {
                 //if ($row->default == 'true') {
-//echo "<option value=\"$row->code\" selected>$row->description (" . $row->code . ")</option>";
+//echo "<option value=\"$row->code\" selected>$row->description (" . $row->code . ")</option>\n";
                 //} else {
 echo "<option value=\"$row->code\">$row->description (" . $row->code . ")</option>\n";
                 //}

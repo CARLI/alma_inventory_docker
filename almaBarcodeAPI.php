@@ -27,6 +27,9 @@ if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
      if (isset($_GET['debug']))
          print("URL:" . $barcode . " $url<br>\n");
 
+     // good to know if these are cached results or not
+     $cached_results = false;
+
      if (strcmp(CACHE_FREQUENCY, "None")) {
          // check cache for barcode
          if (file_exists("cache/barcodes/${orgPrefix}" . $barcode . ".xml")) {
@@ -48,6 +51,7 @@ if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
                     }
                     else {
                         $xml_barcode_result = simplexml_load_string($xml);
+                        $cached_results = true;
                         if (isset($_GET['debug'])) print("loaded data from cache file: cache/barcodes/${orgPrefix}" . $barcode . ".xml<br>\n");
                     }
              }
@@ -72,6 +76,71 @@ if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
              print("<pre>" . htmlspecialchars($result) . "</pre>");
          }
 
+         $xml_barcode_result = simplexml_load_string($result);
+         curl_close($ch);
+
+
+////////////////////////////////
+// check to see if there is a call number prefix! if so, add that info to the item object
+         $holding_data_url = (string)$xml_barcode_result->holding_data['link']."?apikey=" . ALMA_SHELFLIST_API_KEY;
+         // use curl to make the API request
+         $ch = curl_init();
+         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+         //Was critical option setting for this, as API redirects response
+         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+         curl_setopt($ch, CURLOPT_URL, $holding_data_url);
+$headers = [];
+curl_setopt($ch, CURLOPT_HEADERFUNCTION,
+  function($curl, $header) use (&$headers)
+  {
+    $len = strlen($header);
+    $header = explode(':', $header, 2);
+    if (count($header) < 2) // ignore invalid headers
+      return $len;
+
+    $headers[strtolower(trim($header[0]))][] = trim($header[1]);
+    
+    return $len;
+  }
+);
+
+
+         $holding_data_result = curl_exec($ch);
+$api_calls_remaining = end($headers['x-exl-api-remaining']);
+//print("<pre>" . htmlspecialchars(print_r($api_calls_remaining,true)) . "</pre>");
+
+         if (isset($_GET['debug'])) {
+             print("xml result from API<br>\n");
+             print("<pre>" . htmlspecialchars($holding_data_result) . "</pre>");
+         }
+
+         $xml_holding_data_result = simplexml_load_string($holding_data_result);
+         curl_close($ch);
+$gotCNP = 0;
+if ($xml_holding_data_result->record->datafield)  {
+  foreach ($xml_holding_data_result->record->datafield as $df)  {
+    if($df['tag'] == '852') {
+      foreach ($df->subfield as $sf) {
+        if ($sf['code'] == 'k') {
+          $xml_barcode_result->holding_data->call_number_prefix = $sf[0];
+          $gotCNP = 1;
+          break;
+        }
+      }
+      if ($gotCNP == 1) {
+        break;
+      }
+    }
+  }
+}
+// turn object back into XML
+$doc = new DOMDocument();
+$doc->formatOutput = TRUE;
+$doc->loadXML($xml_barcode_result->asXML());
+$result = $doc->saveXML();
+////////////////////////////////
+
+
          // save result to cache
          if (strcmp(CACHE_FREQUENCY, "None") && is_writable("cache/barcodes/")) {
              file_put_contents("cache/barcodes/${orgPrefix}" . $barcode . ".xml", $result);
@@ -80,8 +149,6 @@ if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
              }
          }
 
-         $xml_barcode_result = simplexml_load_string($result);
-         curl_close($ch);
      }
 
      // PARSE RESULTS
@@ -106,18 +173,33 @@ if (!defined('CACHE_FREQUENCY')) define('CACHE_FREQUENCY', 'Daily');
      $item_obj->item_note3 = (string)$xml_barcode_result->item_data->internal_note_3;
      $item_obj->requested = (string)$xml_barcode_result->item_data->requested;
      $item_obj->policy = (string)$xml_barcode_result->item_data->policy;
+////////////////////////////////
+// add this new field to the item object
+if ($xml_barcode_result->holding_data->call_number_prefix) { 
+  $item_obj->call_number_prefix = (string)$xml_barcode_result->holding_data->call_number_prefix;
+}
+////////////////////////////////
+
+////////////////////////////////
+// add this new field to the item object
+     // if no cache data available, query the Alma API
+if ($cached_results) {
+     $item_obj->api_calls_remaining  = NULL;
+} else {
+     $item_obj->api_calls_remaining  = (string)$api_calls_remaining;
+}
+////////////////////////////////
 
      //Add this item to the array of items using the read order as the index value
      return $item_obj;
 
 
-
      //	if(isset($_GET['debug']))
-     {
-         print("<pre>\n");
-         print_r($xml_barcode_result);
-         print("</pre>\n");
-     }
+     //{
+         //print("<pre>\n");
+         //print_r($xml_barcode_result);
+         //print("</pre>\n");
+     //}
      $xml_barcode_result = false;
 
 
