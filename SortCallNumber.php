@@ -143,8 +143,8 @@ function NormalizeLC($lc_call_no_orig)
 		} // end SortLC
 
 	function normalizeDewey($callNum){
-        //Insert ! when lowercase letter comes after number
-        $init = preg_replace('/([0-9])(?=[a-z])/','$1!', $callNum);
+        //Insert ! when lowercase (update: *or* uppercase) letter comes after number
+        $init = preg_replace('/([0-9])(?=[a-zA-Z])/','$1!', $callNum);
 		//make all characters lowercase... sort works better this way for dewey...
 		$init = strtolower($init);
 		//get rid of leading whitespace
