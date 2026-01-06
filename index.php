@@ -310,7 +310,7 @@ echo "<option value=$library->code>$library->name</option>";
     				<label for="location">Scan Location</label>
     			</dt>
     			<dd>
-    				<select size="1" name="location" id="location" class="required">
+    				<select size="8" name="location[]" id="location" class="required" multiple>
     				</select>
     			</dd>
     		</dl>

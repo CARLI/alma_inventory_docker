@@ -121,7 +121,7 @@ if (isset($_POST['submit'])) {
                 //echo $_FILES["file"]["name"] . " already exists. ";
             } else {
                 //Store file in directory "upload" with the name of "uploaded_file.txt"
-                $storagename = 'uploaded_file_' . $_POST['library'] . '_' . $_POST['location'] . '_' . date('Ymd') .  '.xlsx';
+                $storagename = 'uploaded_file_' . $_POST['library'] . '_' . $_POST['location'][0] . '_' . date('Ymd') .  '.xlsx';
                 move_uploaded_file($_FILES["file"]["tmp_name"], "cache/upload/${orgPrefix}" . $storagename);
                 //echo "Stored in: " . "cache/${orgPrefix}" . $_FILES["file"]["name"] . "<br />";
             }
@@ -395,15 +395,21 @@ $cnTypeProblem = "**WRONG CN TYPE** (expecting " . $cntype . ", but got " . $sor
                     $requestProblem = '';
                 }
 
-                $location = $_POST['location'];
-                if ($sortednk[$key]['location'] != $location) {
-                    //$locationProblem = "**WRONG LOCATION: " . $sortednk[$key]['location'] . "**<BR>";
-$locationProblem = "**WRONG LOCATION** (expecting " . $location . ", but got " . $sortednk[$key]['location'] . ")<BR>";
-                    $locationProblemCount += 1;
-                    $problem = true;
-                } else {
-                    $locationProblem = '';
+                $locations = $_POST['location'];
+                $locationProblemEncountered = true; 
+                foreach ($locations as $location) {
+                    if ($sortednk[$key]['location'] == $location) {
+                        $locationProblemEncountered = false; 
+                        $locationProblem = '';
+                        break;
+                    }
                 }
+                if ($locationProblemEncountered) {
+                        $locationProblemCount += 1;
+                        $problem = true;
+$locationProblem = "**WRONG LOCATION** (expecting [" . implode(', ', $locations) . "], but got " . $sortednk[$key]['location'] . ")<BR>";
+                }
+
                 $library = $_POST['library'];
                 if ($sortednk[$key]['library'] != $library) {
                     $libraryProblem = "**WRONG LIBRARY: " . $sortednk[$key]['library'] . "**<BR>";
@@ -470,13 +476,13 @@ $typeProblem = "**WRONG TYPE** (expecting " . $type . ", but got " . $sortednk[$
         }
         //write out page header info
         echo "<div class='page-header'>";
-          echo "  <h1>ShelfList <small>". $_POST['library'] . ':' . $_POST['location'] . ' Range:' . substr($first_call, 0, 4) . '-' . substr($last_call, 0, 4) .' Run Date:'. date('Ymd') ."</small></h1>";
+          echo "  <h1>ShelfList <small>". $_POST['library'] . ':' . $_POST['location'][0] . ' Range:' . substr($first_call, 0, 4) . '-' . substr($last_call, 0, 4) .' Run Date:'. date('Ymd') ."</small></h1>";
         echo "</div>";
         echo "<p class='lead'>";
           echo "Upload file contains ". ($num_rows - 1) . " barcodes.";
         echo "</p>";
         echo "<div class='row'>";
-        $csv_output_filename = $orgPrefix . 'ShelfList_' . $_POST['library'] . '_' . $_POST['location'] . '_' . substr($first_call, 0, 4) . '_' . substr($last_call, 0, 4) . '_' . date('Ymd') . '.csv';
+        $csv_output_filename = $orgPrefix . 'ShelfList_' . $_POST['library'] . '_' . $_POST['location'][0] . '_' . substr($first_call, 0, 4) . '_' . substr($last_call, 0, 4) . '_' . date('Ymd') . '.csv';
           echo "<div class='col-md-4'><a href=" . "http://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "/index.php" . "> Run New File</a></div> <div class='col-md-4'><a href=cache/output/" . $csv_output_filename . ">Download File: " . $csv_output_filename . "</a></div>";
         echo "</div>";
         echo "<table style='width: auto;' class='table table-hover table-bordered table-condensed'><tr><td>";
