@@ -121,7 +121,8 @@ if (isset($_POST['submit'])) {
                 //echo $_FILES["file"]["name"] . " already exists. ";
             } else {
                 //Store file in directory "upload" with the name of "uploaded_file.txt"
-                $storagename = 'uploaded_file_' . $_POST['library'] . '_' . $_POST['location'][0] . '_' . date('Ymd') .  '.xlsx';
+                $locations_string = implode("_", $_POST['location']);
+                $storagename = 'uploaded_file_' . $_POST['library'] . '_' . $locations_string . '_' . date('Ymd') .  '.xlsx';
                 move_uploaded_file($_FILES["file"]["tmp_name"], "cache/upload/${orgPrefix}" . $storagename);
                 //echo "Stored in: " . "cache/${orgPrefix}" . $_FILES["file"]["name"] . "<br />";
             }
@@ -475,14 +476,15 @@ $typeProblem = "**WRONG TYPE** (expecting " . $type . ", but got " . $sortednk[$
 
         }
         //write out page header info
+        $locations_string = implode("_", $_POST['location']);
         echo "<div class='page-header'>";
-          echo "  <h1>ShelfList <small>". $_POST['library'] . ':' . $_POST['location'][0] . ' Range:' . substr($first_call, 0, 4) . '-' . substr($last_call, 0, 4) .' Run Date:'. date('Ymd') ."</small></h1>";
+          echo "  <h1>ShelfList <small>". $_POST['library'] . ':' . $locations_string . ' Range:' . substr($first_call, 0, 4) . '-' . substr($last_call, 0, 4) .' Run Date:'. date('Ymd') ."</small></h1>";
         echo "</div>";
         echo "<p class='lead'>";
           echo "Upload file contains ". ($num_rows - 1) . " barcodes.";
         echo "</p>";
         echo "<div class='row'>";
-        $csv_output_filename = $orgPrefix . 'ShelfList_' . $_POST['library'] . '_' . $_POST['location'][0] . '_' . substr($first_call, 0, 4) . '_' . substr($last_call, 0, 4) . '_' . date('Ymd') . '.csv';
+        $csv_output_filename = $orgPrefix . 'ShelfList_' . $_POST['library'] . '_' . $locations_string . '_' . substr($first_call, 0, 4) . '_' . substr($last_call, 0, 4) . '_' . date('Ymd') . '.csv';
           echo "<div class='col-md-4'><a href=" . "http://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "/index.php" . "> Run New File</a></div> <div class='col-md-4'><a href=cache/output/" . $csv_output_filename . ">Download File: " . $csv_output_filename . "</a></div>";
         echo "</div>";
         echo "<table style='width: auto;' class='table table-hover table-bordered table-condensed'><tr><td>";
@@ -495,7 +497,10 @@ $typeProblem = "**WRONG TYPE** (expecting " . $type . ", but got " . $sortednk[$
         echo '<td>' . $policyProblemCount . '</b> Item Policy Problems Found</td>';
         echo '<td>' . $typeProblemCount . '</b> Item Type Problems Found</td></tr>';
         echo '<tr><td>First call number scanned: <B>' . $first_call . '</b></td>';
-        echo '<td>Last call number scanned: <B>' . $last_call . '</b></td></tr></table>';
+        echo '<td>Last call number scanned: <B>' . $last_call . '</b></td>';
+        $locations_string = implode(", ", $_POST['location']);
+        echo '<td colspan="2">Location(s) selected: <B>' . $locations_string . '</b></td>';
+        echo '</tr></table>';
 
 
         //pre($output_array);
